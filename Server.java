@@ -44,6 +44,8 @@ public class Server {
 				newOutput.writeObject(clientNum);
 				clientNum++;
 				
+				newOutput.writeObject(clients);
+				
 //				send the new client info to all other connected clients
 				for(Socket socket: allSockets) {
 					ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());

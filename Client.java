@@ -1,4 +1,6 @@
+import java.awt.Point;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.*;
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ public class Client extends JFrame {
 
 	private int myNum;
 	private List<ClientTuple> otherClients;
-	private List<ObjectOutputStream> outputStreams;
+	private static List<ObjectOutputStream> outputStreams;
 	private ServerSocket serverSock;
 	private Socket socket;
 	private static final String SERVER_ADDR = "localhost";
@@ -44,22 +46,33 @@ public class Client extends JFrame {
 		this.setResizable(false);
 		
 //		initialize data structures
-		otherClients = new ArrayList<>();
+//		otherClients = new ArrayList<>();
 		outputStreams = new ArrayList<>();
 		try {
 			socket = new Socket(SERVER_ADDR, SERVER_PORT);
+//			accept id number
+			ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
+			try {
+				myNum = (int) input.readObject();
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			}
 			
-//			the server sends you a list of ClientTuples
-//			if you're client 0, do nothing
+			try {
+				otherClients = (ArrayList<ClientTuple>) input.readObject();
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+			}
 			
-//			if you're client x, for n in ClientTuples:
-//				wait for connections from other clients
-//				accept();
+			if(otherClients.size() > 0) {
+//				create new ClientConnector
+				new ClientConnector();
+//				connectToOthers.start();
+			}
 			
-//			OR
+			ClientAcceptor acceptsClients = new ClientAcceptor();
+			acceptsClients.start();
 			
-//			create new threads, 1 for each other client
-//				connect() to each new client
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -68,28 +81,93 @@ public class Client extends JFrame {
 	}
 	
 	private class ServerListener extends Thread {
+		
+	
 //		THIS DOES:
 //			adds incoming ClientTuple to the list of ClientTuples
-//			starts a new ClientHandler associated with the new client
+//		@Override
 			
+	}
+	
+//	This class exists only to connect the current Client to 
+//	all other existing Clients, then it quits
+	class ClientConnector extends Thread {
+		
+		
+		public ClientConnector(){
+			this.start();
+		}
+		
+		@Override
+		public void run() {
+			for(ClientTuple client : otherClients) {
+				try {
+					Socket s = new Socket(client.getAddr(), client.getPort());
+					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
+					
+//					add oos to list in the correct location
+					Client.outputStreams.add(oos);
+					
+//					start new ClientHandler
+					new ClientHandler(ois);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
+	private class ClientAcceptor extends Thread {
+		
+		@Override
+		public void run() {
+			while(true) {
+				try {
+					Socket s = serverSock.accept();
+					
+					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
+					
+					Client.outputStreams.add(oos);
+					
+					new ClientHandler(ois);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				
+			}
+		}
+		
 	}
 	
 	
 	private class ClientHandler extends Thread {
-//		THIS DOES:
-//			connects to a new client - creates new ios and oos
-//				connect();
+
+		private ObjectInputStream input;
 		
-//				OR
+		public ClientHandler(ObjectInputStream ois) {
+			this.input = ois;
+			this.start();
+		}
 		
-//				accept() connection from new client
-		
-		
-//				add oos to list of outputStreams
-//			listens for incoming data from a specific client
-//			upon client leaving, removes their data from the ClientTuple
-//			and outputStreams list
-	
+		@Override
+		public void run() {
+			
+			while(true) {
+				
+				try {
+					// TODO wait for data
+					Point newPoint = (Point) input.readObject();
+					// TODO update model
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+//					TODO check for socket closure, handle accordingly
+					e.printStackTrace();
+				}
+			}
+		}	
 	}
 	
 	
