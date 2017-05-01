@@ -32,28 +32,39 @@ public class Server {
 			// Accept a connection from the ServerSocket.
 			Socket s;
 			try {
+				System.out.println("about to accept connection");
 				s = sock.accept();
+				System.out.println("someone connected");
 //				pull out the address and port
-				InetAddress clientAddress = s.getInetAddress();
-				int clientPort = s.getPort();
-				ClientTuple newClient = new ClientTuple(clientAddress, clientPort, clientNum);
+//				InetAddress clientAddress = s.getInetAddress();
+//				int clientPort = s.getPort();
+//				ClientTuple newClient = new ClientTuple(clientAddress, clientPort, clientNum);
 				
 				ObjectOutputStream newOutput = new ObjectOutputStream(s.getOutputStream());
+				ObjectInputStream newInput = new ObjectInputStream(s.getInputStream());
 				
+				System.out.println("finished creating ois and oos to new client");
 //				tell the client which one they are
 				newOutput.writeObject(clientNum);
 				clientNum++;
 				
 				newOutput.writeObject(clients);
-				
-//				send the new client info to all other connected clients
-				for(Socket socket: allSockets) {
-					ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-					oos.writeObject(newClient);
+				ClientTuple newTuple;
+				try {
+					newTuple = (ClientTuple) newInput.readObject();
+//					add new client to the list
+					clients.add(newTuple);
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
 				}
 				
-//				add new client to the list
-				clients.add(newClient);
+				
+//				send the new client info to all other connected clients
+//				for(Socket socket: allSockets) {
+//					ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+//					oos.writeObject(newClient);
+//				}
+				
 				allSockets.add(s);
 
 //				ObjectInputStream is = new ObjectInputStream(s.getInputStream());
