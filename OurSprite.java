@@ -1,7 +1,8 @@
 import java.awt.Point;
+import java.io.Serializable;
 import java.util.Observable;
 
-public class OurSprite extends Observable {
+public class OurSprite extends Observable implements Serializable {
 
 	private Point currentPoint;
 	private int direction;
@@ -35,5 +36,12 @@ public class OurSprite extends Observable {
 	
 	public int getDirection() {
 		return this.direction;
+	}
+	
+	public void setSprite(OurSprite newSprite) {
+		this.currentPoint = newSprite.getPoint();
+		this.direction = newSprite.getDirection();
+		setChanged();
+		notifyObservers();
 	}
 }

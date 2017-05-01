@@ -197,6 +197,7 @@ public class Client extends JFrame implements Observer {
 					try {
 //						accept new Client's ClientTuple
 						ClientTuple newTuple = (ClientTuple) ois.readObject();
+						System.out.println("accepted ClientTuple from #" + newTuple.getNum());
 //						figure out where newTuple should go in ClientTuple list
 						int index = 0;
 						for(ClientTuple client: otherClients) {
@@ -243,9 +244,16 @@ public class Client extends JFrame implements Observer {
 				
 				try {
 					// wait for data
-					Point newPoint = (Point) input.readObject();
+					OurSprite newSprite = (OurSprite) input.readObject();
+
 					// update model
-					theSprite.setPoint(newPoint);
+					if(newSprite.getDirection() < 0) {
+						newSprite.setPoint(new Point(100, (int)newSprite.getPoint().getY()));
+					} else {
+						newSprite.setPoint(new Point(50, (int)newSprite.getPoint().getY()));
+					}
+					
+					theSprite.setSprite(newSprite);
 					
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
@@ -262,30 +270,89 @@ public class Client extends JFrame implements Observer {
 	public void update(Observable sprite, Object arg1) {
 
 		Point currPoint = theSprite.getPoint();
+		
+//		TODO remove this before production
 		System.out.println(theSprite.getPoint());
-//		int x = currPoint.getX() + 5;
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+			
 		if((int)currPoint.getX() > 100) {
 			System.out.println("reached edge of screen");
-			theSprite.changeDirection();
-//			return;
+			
+			int sendTo = findNextRight();
+			System.out.println("I should send to " + sendTo);
+			
+			if(sendTo < 0) {
+				theSprite.changeDirection();
+			} else {
+				
+				ObjectOutputStream sender = outputStreams.get(sendTo);
+				try {
+					sender.writeObject(theSprite);
+					return;
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			
 		} else if ((int)currPoint.getX() < 0) {
-			theSprite.changeDirection();
+			
+			int sendTo = findNextLeft();
+			
+			if(sendTo < 0) {
+				theSprite.changeDirection();
+			} else {
+				ObjectOutputStream sender = outputStreams.get(sendTo);
+				try {
+					sender.writeObject(theSprite);
+					return;
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			
 		}
 		
-//		else {
 			if(theSprite.getDirection() < 0) {
 //				subtract 5 from x
 				theSprite.setPoint(new Point((int)currPoint.getX() - 5, (int)currPoint.getY()));
+
 			} else {
 //				add 5 to x
 				theSprite.setPoint(new Point((int)currPoint.getX() + 5, (int)currPoint.getY()));
 			}
 				
-//		}
 		
 //		this.repaint();
 		
 		
+	}
+	
+	
+	public int findNextRight() {
+		int index = 0;
+		for(ClientTuple client : otherClients) {
+			if(client.getNum() > myNum) {
+				return index;
+			} else {
+				index++;
+			}
+		}
+		return -1;
+	}
+	
+	public int findNextLeft() {
+		
+		for(int i = otherClients.size() - 1; i >= 0; i--) {
+			if(otherClients.get(i).getNum() < myNum) {
+				return i;
+			} 
+		}
+		
+		return -1;
 	}
 	
 	
