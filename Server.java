@@ -49,11 +49,14 @@ public class Server {
 				clientNum++;
 				
 				newOutput.writeObject(clients);
+				
 				ClientTuple newTuple;
 				try {
 					newTuple = (ClientTuple) newInput.readObject();
 //					add new client to the list
 					clients.add(newTuple);
+					System.out.println("added new client to list of clienttuples");
+					
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
 				}
@@ -66,13 +69,15 @@ public class Server {
 //				}
 				
 				allSockets.add(s);
+				System.out.println("new client's stream added to allSockets");
 
 //				ObjectInputStream is = new ObjectInputStream(s.getInputStream());
 //				ObjectOutputStream os = new ObjectOutputStream(s.getOutputStream());
 //				outputStreams.add(os);
 				
 //				ClientHandler handler = new ClientHandler(is, os, clients);
-				ClientHandler handler = new ClientHandler(s, clients, allSockets);
+//				ServerClientHandler handler = new ServerClientHandler(s, clients, allSockets);
+				ServerClientHandler handler = new ServerClientHandler(newOutput, newInput, clients, allSockets);
 				handler.start();
 
 				System.out.println("Accepted a new connection from " + s.getInetAddress());
@@ -98,7 +103,7 @@ public class Server {
 	
 }
 
-class ClientHandler extends Thread {
+class ServerClientHandler extends Thread {
 	
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
@@ -108,24 +113,29 @@ class ClientHandler extends Thread {
 	private boolean isConnected = true;
 	
 //	public ClientHandler(ObjectInputStream is, ObjectOutputStream os, List<ClientTuple> clients) {
-	public ClientHandler(Socket s, List<ClientTuple> clients, List<Socket> sockets) {
+//	public ServerClientHandler(Socket s, List<ClientTuple> clients, List<Socket> sockets) {
+	public ServerClientHandler(ObjectOutputStream newOutput, ObjectInputStream newInput, List<ClientTuple> clients, List<Socket> sockets) {
+		System.out.println("inside ServerClientHandler constructor");
 //		this.output = os;
 //		this.input = is;
-		this.s = s;
+//		this.s = s;
+		this.output = newOutput;
+		this.input = newInput;
 		this.clients = clients;
 		this.allSockets = sockets;
 		
-		try {
-			output = new ObjectOutputStream(s.getOutputStream());
-			input = new ObjectInputStream(s.getInputStream());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			output = new ObjectOutputStream(s.getOutputStream());
+//			input = new ObjectInputStream(s.getInputStream());
+//			System.out.println("finished creating oos and ois for new client");
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
 	}
 	
 	@Override
 	public void run() {
-		
+		System.out.println("inside client handler");
 		while(isConnected) {
 //			TODO check the state of the socket/objectinputstream
 //				if it's closed, remove this client from your list
@@ -167,6 +177,7 @@ class ClientHandler extends Thread {
 					
 					
 				} catch (IOException e1) {
+//					TODO remove client from the list
 					e1.printStackTrace();
 				}
 				

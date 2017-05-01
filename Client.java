@@ -15,9 +15,6 @@ public class Client extends JFrame implements Observer {
 	
 	
 //	WE NEED:
-//	1. ClientHandler to check if another client leaves
-//	2. List of client ObjectOutputStreams (sorted)
-//	3. List of ClientTuples (sorted)
 //	4. algorithm to decide which client to send the
 //	sprite position to
 //	5. view to display the sprite
@@ -58,7 +55,7 @@ public class Client extends JFrame implements Observer {
 		theSprite.addObserver(this);
 		
 		outputStreams = new ArrayList<>();
-//		outputStreams = Collections.synchronizedList(new ArrayList<>());
+		outputStreams = Collections.synchronizedList(new ArrayList<>());
 		try {
 			System.out.println("about to connect to server");
 			socket = new Socket(SERVER_ADDR, SERVER_PORT);
@@ -76,7 +73,8 @@ public class Client extends JFrame implements Observer {
 			}
 			
 			try {
-				otherClients = (ArrayList<ClientTuple>) input.readObject();
+//				otherClients = (ArrayList<ClientTuple>) input.readObject();
+				otherClients = (List<ClientTuple>) input.readObject();
 				myTuple = new ClientTuple(InetAddress.getLocalHost(), MY_PORT, myNum);
 				output.writeObject(myTuple);
 				System.out.println("wrote myTuple to server");
@@ -91,8 +89,9 @@ public class Client extends JFrame implements Observer {
 //				connectToOthers.start();
 			}
 			
-			ClientAcceptor acceptsClients = new ClientAcceptor();
-			acceptsClients.start();
+//			ClientAcceptor acceptsClients = new ClientAcceptor();
+//			acceptsClients.start();
+			new ClientAcceptor();
 			
 //			are you client 0? - start animating
 			if(otherClients.size() == 0) {
@@ -151,12 +150,13 @@ public class Client extends JFrame implements Observer {
 		
 		@Override
 		public void run() {
+			System.out.println("ClientConnector started");
 			for(ClientTuple client : otherClients) {
 				try {
 					Socket s = new Socket(client.getAddr(), client.getPort());
 					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
 					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
-					
+					System.out.println("created oos and ois for client #" + client.getNum());
 //					send myTuple to the other client
 					oos.writeObject(myTuple);
 					
@@ -164,7 +164,7 @@ public class Client extends JFrame implements Observer {
 					Client.outputStreams.add(oos);
 					
 //					start new ClientHandler
-					new ClientHandler(ois);
+					new ClientListener(ois);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -174,20 +174,28 @@ public class Client extends JFrame implements Observer {
 	
 	private class ClientAcceptor extends Thread {
 		
+		public ClientAcceptor() {
+			try {
+				serverSock = new ServerSocket(MY_PORT);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			this.start();
+		}
+		
 		@Override
 		public void run() {
+			System.out.println("inside ClientAcceptor");
 			while(true) {
 				try {
 //					wait for new friend
 					Socket s = serverSock.accept();
-					
+					System.out.println("someone new connected");
 					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
 					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
 					
-//					accept new Client's ClientTuple
-					
 					try {
-						
+//						accept new Client's ClientTuple
 						ClientTuple newTuple = (ClientTuple) ois.readObject();
 //						figure out where newTuple should go in ClientTuple list
 						int index = 0;
@@ -202,13 +210,13 @@ public class Client extends JFrame implements Observer {
 						otherClients.add(index, newTuple);
 						
 						Client.outputStreams.add(index, oos);
-						
+						System.out.println("added new oos to outputStreams");
 						
 					} catch (ClassNotFoundException e) {
 						e.printStackTrace();
 					}
 
-					new ClientHandler(ois);
+					new ClientListener(ois);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -219,18 +227,18 @@ public class Client extends JFrame implements Observer {
 	}
 	
 	
-	private class ClientHandler extends Thread {
+	private class ClientListener extends Thread {
 
 		private ObjectInputStream input;
 		
-		public ClientHandler(ObjectInputStream ois) {
+		public ClientListener(ObjectInputStream ois) {
 			this.input = ois;
 			this.start();
 		}
 		
 		@Override
 		public void run() {
-			
+			System.out.println("started new ClientListener");
 			while(true) {
 				
 				try {
@@ -256,7 +264,25 @@ public class Client extends JFrame implements Observer {
 		Point currPoint = theSprite.getPoint();
 		System.out.println(theSprite.getPoint());
 //		int x = currPoint.getX() + 5;
-		theSprite.setPoint(new Point((int)currPoint.getX() + 5, (int)currPoint.getY()));
+		if((int)currPoint.getX() > 100) {
+			System.out.println("reached edge of screen");
+			theSprite.changeDirection();
+//			return;
+		} else if ((int)currPoint.getX() < 0) {
+			theSprite.changeDirection();
+		}
+		
+//		else {
+			if(theSprite.getDirection() < 0) {
+//				subtract 5 from x
+				theSprite.setPoint(new Point((int)currPoint.getX() - 5, (int)currPoint.getY()));
+			} else {
+//				add 5 to x
+				theSprite.setPoint(new Point((int)currPoint.getX() + 5, (int)currPoint.getY()));
+			}
+				
+//		}
+		
 //		this.repaint();
 		
 		
