@@ -1,4 +1,6 @@
 import java.awt.Point;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -15,8 +17,6 @@ public class Client extends JFrame implements Observer {
 	
 	
 //	WE NEED:
-//	4. algorithm to decide which client to send the
-//	sprite position to
 //	5. view to display the sprite
 //	6. timer to run the animations
 //	7. POTENTIAL keylistener to control the sprite
@@ -50,11 +50,12 @@ public class Client extends JFrame implements Observer {
 		this.setResizable(false);
 		
 //		initialize data structures
-//		otherClients = new ArrayList<>();
 		theSprite = new OurSprite();
 		theSprite.addObserver(this);
 		
-		outputStreams = new ArrayList<>();
+		this.addWindowListener(new OurWindowListener());
+		
+	    otherClients = Collections.synchronizedList(new ArrayList<>());
 		outputStreams = Collections.synchronizedList(new ArrayList<>());
 		try {
 			System.out.println("about to connect to server");
@@ -73,8 +74,8 @@ public class Client extends JFrame implements Observer {
 			}
 			
 			try {
-//				otherClients = (ArrayList<ClientTuple>) input.readObject();
 				otherClients = (List<ClientTuple>) input.readObject();
+				System.out.println("otherClients list is size " + otherClients.size());
 				myTuple = new ClientTuple(InetAddress.getLocalHost(), MY_PORT, myNum);
 				output.writeObject(myTuple);
 				System.out.println("wrote myTuple to server");
@@ -86,11 +87,8 @@ public class Client extends JFrame implements Observer {
 				System.out.println("started ClientConnector");
 //				create new ClientConnector
 				new ClientConnector();
-//				connectToOthers.start();
 			}
 			
-//			ClientAcceptor acceptsClients = new ClientAcceptor();
-//			acceptsClients.start();
 			new ClientAcceptor();
 			
 //			are you client 0? - start animating
@@ -99,8 +97,6 @@ public class Client extends JFrame implements Observer {
 				theSprite.setPoint(new Point(50, 50));
 			}
 			
-//			new ServerListener();
-			
 		} catch (IOException e) {
 
 			e.printStackTrace();
@@ -108,36 +104,6 @@ public class Client extends JFrame implements Observer {
 		
 	}
 	
-//	private class ServerListener extends Thread {
-//		
-//	
-////		THIS DOES:
-////			adds incoming ClientTuple to the list of ClientTuples
-//		
-//		@Override
-//		public void run() {
-//			ObjectInputStream serverInput;
-//			try {
-//				serverInput = new ObjectInputStream(socket.getInputStream());
-//				while(true) {
-//					try {
-//						ClientTuple newClient = (ClientTuple) serverInput.readObject();
-//						
-////						TODO figure out where to add this guy
-//						
-//					} catch (ClassNotFoundException e) {
-//						// TODO Auto-generated catch block
-//						e.printStackTrace();
-//					}
-//				}
-//			} catch (IOException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//
-//		}
-//			
-//	}
 	
 //	This class exists only to connect the current Client to 
 //	all other existing Clients, then it quits
@@ -151,24 +117,30 @@ public class Client extends JFrame implements Observer {
 		@Override
 		public void run() {
 			System.out.println("ClientConnector started");
-			for(ClientTuple client : otherClients) {
-				try {
-					Socket s = new Socket(client.getAddr(), client.getPort());
-					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
-					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
-					System.out.println("created oos and ois for client #" + client.getNum());
-//					send myTuple to the other client
-					oos.writeObject(myTuple);
-					
-//					add oos to list in the correct location
-					Client.outputStreams.add(oos);
-					
-//					start new ClientHandler
-					new ClientListener(ois);
-				} catch (IOException e) {
-					e.printStackTrace();
+			synchronized(otherClients) {
+				for(ClientTuple client : otherClients) {
+					System.out.println("attempting to connect to client #" + client.getNum());
+					try {
+						Socket s = new Socket(client.getAddr(), client.getPort());
+						ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+						ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
+						System.out.println("created oos and ois for client #" + client.getNum());
+//						send myTuple to the other client
+						oos.writeObject(myTuple);
+						
+//						add oos to list in the correct location
+						synchronized(Client.outputStreams) {
+							Client.outputStreams.add(oos);
+						}
+						
+//						start new ClientHandler
+						new ClientListener(ois, client.getNum());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
 				}
 			}
+
 		}
 	}
 	
@@ -193,31 +165,39 @@ public class Client extends JFrame implements Observer {
 					System.out.println("someone new connected");
 					ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
 					ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
-					
+					ClientTuple newTuple = null;
 					try {
 //						accept new Client's ClientTuple
-						ClientTuple newTuple = (ClientTuple) ois.readObject();
+						newTuple = (ClientTuple) ois.readObject();
 						System.out.println("accepted ClientTuple from #" + newTuple.getNum());
 //						figure out where newTuple should go in ClientTuple list
 						int index = 0;
-						for(ClientTuple client: otherClients) {
-							if(client.getNum() < newTuple.getNum()) {
-								break;
+						synchronized(otherClients) {
+							for(ClientTuple client: otherClients) {
+								if(client.getNum() < newTuple.getNum()) {
+									index++;
+								} else {
+									break;
+								}
 							}
-							index++;
 						}
 						
-//						insert newTuple
-						otherClients.add(index, newTuple);
 						
-						Client.outputStreams.add(index, oos);
+//						insert newTuple
+						synchronized(otherClients) {
+							otherClients.add(index, newTuple);
+						}
+						
+						synchronized(Client.outputStreams) {
+							Client.outputStreams.add(index, oos);
+						}
 						System.out.println("added new oos to outputStreams");
 						
 					} catch (ClassNotFoundException e) {
 						e.printStackTrace();
 					}
 
-					new ClientListener(ois);
+					new ClientListener(ois, newTuple.getNum());
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -231,16 +211,19 @@ public class Client extends JFrame implements Observer {
 	private class ClientListener extends Thread {
 
 		private ObjectInputStream input;
+		private int threadNum;
+		private boolean isConnected = true;
 		
-		public ClientListener(ObjectInputStream ois) {
+		public ClientListener(ObjectInputStream ois, int num) {
 			this.input = ois;
+			this.threadNum = num;
 			this.start();
 		}
 		
 		@Override
 		public void run() {
 			System.out.println("started new ClientListener");
-			while(true) {
+			while(isConnected) {
 				
 				try {
 					// wait for data
@@ -258,8 +241,35 @@ public class Client extends JFrame implements Observer {
 				} catch (ClassNotFoundException e) {
 					e.printStackTrace();
 				} catch (IOException e) {
-//					TODO check for socket closure, handle accordingly
-					e.printStackTrace();
+//					check for socket closure, handle accordingly
+//					e.printStackTrace();
+					System.out.println("client #" + threadNum + " is disconnecting");
+					try {
+						this.input.close();
+						
+//						remove client from ClientTuple list and
+//						ObjectOutputStream list
+						int index = 0;
+						synchronized(otherClients) {
+							for (ClientTuple client : otherClients) {
+								if(client.getNum() == threadNum) {
+									otherClients.remove(client);
+									break;
+								} else {
+									index++;
+								}
+							}
+						}
+						
+						synchronized(outputStreams) {
+							outputStreams.remove(index);
+						}
+						
+						isConnected = false;
+					} catch (IOException e1) {
+						e1.printStackTrace();
+					}
+					
 				}
 			}
 		}	
@@ -288,8 +298,11 @@ public class Client extends JFrame implements Observer {
 			if(sendTo < 0) {
 				theSprite.changeDirection();
 			} else {
+				ObjectOutputStream sender;
+				synchronized(outputStreams) {
+					sender = outputStreams.get(sendTo);
+				}
 				
-				ObjectOutputStream sender = outputStreams.get(sendTo);
 				try {
 					sender.writeObject(theSprite);
 					return;
@@ -301,19 +314,24 @@ public class Client extends JFrame implements Observer {
 		} else if ((int)currPoint.getX() < 0) {
 			
 			int sendTo = findNextLeft();
-			
+			System.out.println("I should send to " + sendTo);
 			if(sendTo < 0) {
 				theSprite.changeDirection();
 			} else {
-				ObjectOutputStream sender = outputStreams.get(sendTo);
+				ObjectOutputStream sender;
+				synchronized(outputStreams) {
+					sender = outputStreams.get(sendTo);
+				}
 				try {
 					sender.writeObject(theSprite);
 					return;
 				} catch (IOException e) {
+//					TODO recover from this error:
+//					remove closed clienttuple
+//					remove closed oos
 					e.printStackTrace();
 				}
 			}
-			
 		}
 		
 			if(theSprite.getDirection() < 0) {
@@ -334,26 +352,84 @@ public class Client extends JFrame implements Observer {
 	
 	public int findNextRight() {
 		int index = 0;
-		for(ClientTuple client : otherClients) {
-			if(client.getNum() > myNum) {
-				return index;
-			} else {
-				index++;
+		synchronized(otherClients) {
+			for(ClientTuple client : otherClients) {
+				if(client.getNum() > myNum) {
+					return index;
+				} else {
+					index++;
+				}
 			}
+			return -1;
 		}
-		return -1;
+		
 	}
 	
 	public int findNextLeft() {
 		
-		for(int i = otherClients.size() - 1; i >= 0; i--) {
-			if(otherClients.get(i).getNum() < myNum) {
-				return i;
-			} 
+		synchronized(otherClients) {
+			for(int i = otherClients.size() - 1; i >= 0; i--) {
+				if(otherClients.get(i).getNum() < myNum) {
+					return i;
+				} 
+			}
+			
+			return -1;
 		}
 		
-		return -1;
 	}
 	
-	
+	private class OurWindowListener implements WindowListener {
+
+		@Override
+		public void windowActivated(WindowEvent arg0) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void windowClosed(WindowEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void windowClosing(WindowEvent e) {
+//			close all ObjectOutputStreams in outputStreams
+			for(ObjectOutputStream stream : outputStreams) {
+				try {
+					stream.close();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+			}
+			
+			System.exit(0);
+		}
+
+		@Override
+		public void windowDeactivated(WindowEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void windowDeiconified(WindowEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void windowIconified(WindowEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void windowOpened(WindowEvent e) {
+			// TODO Auto-generated method stub
+			
+		}
+		
+	}
 }
