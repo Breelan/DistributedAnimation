@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -14,6 +15,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -28,7 +31,8 @@ public class Client extends JPanel implements Observer {
 //	7. POTENTIAL keylistener to control the sprite
 	
 //	add gui stuff
-	private Image hunter;
+	private Image train;
+	private Image background;
 	
 	private int myNum;
 	private static List<ClientTuple> otherClients;
@@ -51,7 +55,7 @@ public class Client extends JPanel implements Observer {
 //		serverAddr = (InetAddress)temp;
 		JFrame frame = new JFrame();
 		frame.setTitle("Client Port #" + MY_PORT);
-		frame.setSize(500, 500);
+		frame.setSize(500, 150);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setResizable(false);
 		frame.addWindowListener(new ClientWindowListener());
@@ -62,30 +66,22 @@ public class Client extends JPanel implements Observer {
 //		TODO check if this is client 0 and start sprite moving
 		if(otherClients.size() == 0) {
 			System.out.println("about to initialize new point");
-			theSprite.setPoint(new Point(50, 50));
+			theSprite.setPoint(new Point(0, 50));
 		}
 	}
 	
 	public Client() {
-//		set up jframe
-//		this.setTitle("Client Port #" + MY_PORT);
-//		this.setSize(500, 500);
-//		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//		this.setResizable(false);
-		
-//		drawingPanel = new JPanel();
-//		this.add(drawingPanel);
-		
 		
 //		initialize data structures
 		try {
-//			hunter = ImageIO.read(new File("/DistributedProject42/images/TheHunter.png"));
-			hunter = ImageIO.read(new File("images/TheHunter.png"));
-//			hunter = ImageIO.read(getClass().getResource("/DistributedProject42/images/TheHunter.png"));
+//			hunter = ImageIO.read(new File("images/TheHunter.png"));
+			background = ImageIO.read(new File("images/background.jpg"));
+			train = ImageIO.read(new File("images/locomotive.png"));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
 		theSprite = new OurSprite();
+		theSprite.setPoint(new Point(-10, -10));
 		theSprite.addObserver(this);
 		
 //		this.addWindowListener(new OurWindowListener());
@@ -267,9 +263,9 @@ public class Client extends JPanel implements Observer {
 
 					// update model
 					if(newSprite.getDirection() < 0) {
-						newSprite.setPoint(new Point(100, (int)newSprite.getPoint().getY()));
+						newSprite.setPoint(new Point(500, (int)newSprite.getPoint().getY()));
 					} else {
-						newSprite.setPoint(new Point(50, (int)newSprite.getPoint().getY()));
+						newSprite.setPoint(new Point(0, (int)newSprite.getPoint().getY()));
 					}
 					
 					theSprite.setSprite(newSprite);
@@ -316,7 +312,11 @@ public class Client extends JPanel implements Observer {
 		super.paintComponents(g);
 		Graphics2D g2 = (Graphics2D) g;
 		
-		g2.drawImage(hunter, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+		g2.drawImage(background, 0, 0, null);
+		
+		if(theSprite.getPoint().getX() >= 0 && theSprite.getPoint().getX() < 500) {
+			g2.drawImage(train, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+		}
 	}
 
 
@@ -326,69 +326,68 @@ public class Client extends JPanel implements Observer {
 		Point currPoint = theSprite.getPoint();
 		repaint();
 		
-//		TODO remove this before production
-		System.out.println(theSprite.getPoint());
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		new Timer().schedule(new TimerTask() {
 			
-		if((int)currPoint.getX() > 100) {
-			System.out.println("reached edge of screen");
-			
-			int sendTo = findNextRight();
-			System.out.println("I should send to " + sendTo);
-			
-			if(sendTo < 0) {
-				theSprite.changeDirection();
-			} else {
-				ObjectOutputStream sender;
-				synchronized(outputStreams) {
-					sender = outputStreams.get(sendTo);
+			@Override
+			public void run() {
+				System.out.println(theSprite.getPoint());
+				if((int)currPoint.getX() >= 500) {
+					System.out.println("reached edge of screen");
+					
+					int sendTo = findNextRight();
+					System.out.println("I should send to " + sendTo);
+					
+					if(sendTo < 0) {
+						theSprite.changeDirection();
+					} else {
+						ObjectOutputStream sender;
+						synchronized(outputStreams) {
+							sender = outputStreams.get(sendTo);
+						}
+						
+						try {
+							sender.writeObject(theSprite);
+							return;
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+					
+				} else if ((int)currPoint.getX() < 0) {
+					
+					int sendTo = findNextLeft();
+					System.out.println("I should send to " + sendTo);
+					if(sendTo < 0) {
+						theSprite.changeDirection();
+					} else {
+						ObjectOutputStream sender;
+						synchronized(outputStreams) {
+							sender = outputStreams.get(sendTo);
+						}
+						try {
+							sender.writeObject(theSprite);
+							return;
+						} catch (IOException e) {
+//							TODO recover from this error:
+//							remove closed clienttuple
+//							remove closed oos
+							e.printStackTrace();
+						}
+					}
 				}
 				
-				try {
-					sender.writeObject(theSprite);
-					return;
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-			
-		} else if ((int)currPoint.getX() < 0) {
-			
-			int sendTo = findNextLeft();
-			System.out.println("I should send to " + sendTo);
-			if(sendTo < 0) {
-				theSprite.changeDirection();
-			} else {
-				ObjectOutputStream sender;
-				synchronized(outputStreams) {
-					sender = outputStreams.get(sendTo);
-				}
-				try {
-					sender.writeObject(theSprite);
-					return;
-				} catch (IOException e) {
-//					TODO recover from this error:
-//					remove closed clienttuple
-//					remove closed oos
-					e.printStackTrace();
-				}
-			}
-		}
-		
-			if(theSprite.getDirection() < 0) {
-//				subtract 5 from x
-				theSprite.setPoint(new Point((int)currPoint.getX() - 5, (int)currPoint.getY()));
+					if(theSprite.getDirection() < 0) {
+//						subtract 1 from x
+						theSprite.setPoint(new Point((int)currPoint.getX() - 1, (int)currPoint.getY()));
 
-			} else {
-//				add 5 to x
-				theSprite.setPoint(new Point((int)currPoint.getX() + 5, (int)currPoint.getY()));
+					} else {
+//						add 1 to x
+						theSprite.setPoint(new Point((int)currPoint.getX() + 1, (int)currPoint.getY()));
+					}
 			}
-		
-		
+
+		}, 50);
+				
 	}
 	
 	
