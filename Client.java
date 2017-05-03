@@ -22,16 +22,12 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
+//NOTE: all clients must use a different port
 public class Client extends JPanel implements Observer {
 	
-	
-//	WE NEED:
-//	5. view to display the sprite
-//	6. timer to run the animations
-//	7. POTENTIAL keylistener to control the sprite
-	
 //	add gui stuff
-	private Image train;
+	private Image train_right;
+	private Image train_left;
 	private Image background;
 	
 	private int myNum;
@@ -39,22 +35,15 @@ public class Client extends JPanel implements Observer {
 	static List<ObjectOutputStream> outputStreams;
 	private ServerSocket serverSock;
 	private Socket socket;
-//	private static final String SERVER_ADDR = "localhost";
 	private static String SERVER_ADDR;
-//	TODO use this instead of string eventually?
-//	private static final InetAddress address;
 	private static final int SERVER_PORT = 4003;
 	private static int MY_PORT;
 	private static ClientTuple myTuple;
 	private static OurSprite theSprite;
-//	private JPanel drawingPanel;
 	
 	public static void main(String[] args) {
 		SERVER_ADDR = args[0];
 		MY_PORT = Integer.parseInt(args[1]);
-//		TODO pull in ip address dynamically
-//		int temp = Integer.parseInt(args[0]);
-//		serverAddr = (InetAddress)temp;
 		JFrame frame = new JFrame();
 		frame.setTitle("Client Port #" + MY_PORT);
 		frame.setSize(500, 150);
@@ -63,9 +52,8 @@ public class Client extends JPanel implements Observer {
 		frame.addWindowListener(new ClientWindowListener());
 		frame.add(new Client());
 		frame.setVisible(true);
-//		new Client().setVisible(true);
 		
-//		TODO check if this is client 0 and start sprite moving
+//		check if this is client 0 and start sprite moving
 		if(otherClients.size() == 0) {
 			System.out.println("about to initialize new point");
 			theSprite.setPoint(new Point(0, 50));
@@ -74,19 +62,17 @@ public class Client extends JPanel implements Observer {
 	
 	public Client() {
 		
-//		initialize data structures
+//		initialize data structures and images
 		try {
-//			hunter = ImageIO.read(new File("images/TheHunter.png"));
 			background = ImageIO.read(new File("images/background.jpg"));
-			train = ImageIO.read(new File("images/locomotive.png"));
+			train_right = ImageIO.read(new File("images/loco_right.png"));
+			train_left = ImageIO.read(new File("images/loco_left.png"));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
 		theSprite = new OurSprite();
 		theSprite.setPoint(new Point(-10, -10));
 		theSprite.addObserver(this);
-		
-//		this.addWindowListener(new OurWindowListener());
 		
 	    otherClients = Collections.synchronizedList(new ArrayList<>());
 		outputStreams = Collections.synchronizedList(new ArrayList<>());
@@ -125,12 +111,6 @@ public class Client extends JPanel implements Observer {
 			}
 			
 			new ClientAcceptor();
-			
-//			are you client 0? - start animating
-//			if(otherClients.size() == 0) {
-//				System.out.println("about to initialize new point");
-//				theSprite.setPoint(new Point(50, 50));
-//			}
 			
 		} catch (IOException e) {
 
@@ -310,14 +290,18 @@ public class Client extends JPanel implements Observer {
 	}
 	
 	public void paintComponent(Graphics g) {
-		System.out.println("inside paintcomponent");
 		super.paintComponents(g);
 		Graphics2D g2 = (Graphics2D) g;
 		
 		g2.drawImage(background, 0, 0, null);
 		
 		if(theSprite.getPoint().getX() >= 0 && theSprite.getPoint().getX() < 500) {
-			g2.drawImage(train, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+			if(theSprite.getDirection() > 0) {
+				g2.drawImage(train_right, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+			} else {
+				g2.drawImage(train_left, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+			}
+			
 		}
 	}
 
@@ -332,7 +316,6 @@ public class Client extends JPanel implements Observer {
 			
 			@Override
 			public void run() {
-				System.out.println(theSprite.getPoint());
 				if((int)currPoint.getX() > 500) {
 					System.out.println("reached edge of screen");
 					
@@ -428,19 +411,19 @@ class ClientWindowListener implements WindowListener {
 
 	@Override
 	public void windowActivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 
 	@Override
 	public void windowClosed(WindowEvent e) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 
 	@Override
 	public void windowClosing(WindowEvent e) {
-//		close all ObjectOutputStreams in outputStreams
+//		nicely close all ObjectOutputStreams in outputStreams
 		for(ObjectOutputStream stream : Client.outputStreams) {
 			try {
 				stream.close();
@@ -454,25 +437,25 @@ class ClientWindowListener implements WindowListener {
 
 	@Override
 	public void windowDeactivated(WindowEvent e) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 
 	@Override
 	public void windowDeiconified(WindowEvent e) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 
 	@Override
 	public void windowIconified(WindowEvent e) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 
 	@Override
 	public void windowOpened(WindowEvent e) {
-		// TODO Auto-generated method stub
+		// ignore
 		
 	}
 	

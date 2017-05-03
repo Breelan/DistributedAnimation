@@ -32,10 +32,6 @@ public class Server {
 				System.out.println("about to accept connection");
 				s = sock.accept();
 				System.out.println("someone connected");
-//				pull out the address and port
-//				InetAddress clientAddress = s.getInetAddress();
-//				int clientPort = s.getPort();
-//				ClientTuple newClient = new ClientTuple(clientAddress, clientPort, clientNum);
 				
 				ObjectOutputStream newOutput = new ObjectOutputStream(s.getOutputStream());
 				ObjectInputStream newInput = new ObjectInputStream(s.getInputStream());
@@ -77,6 +73,10 @@ public class Server {
 	
 }
 
+//This class simply listens for a connection to a particular
+//Client to break, then Server removes the associated ClientTuple
+//from the list of ClientTuples so that new connecting Clients
+//do not receive a list containing Clients that have quit
 class ServerClientHandler extends Thread {
 	
 	private ObjectOutputStream output;
@@ -120,8 +120,6 @@ class ServerClientHandler extends Thread {
 					synchronized(clients) {
 						int i;
 						for(i = 0; i < clients.size(); i++) {
-//							TODO add this back in when testing on separate machines
-//							if(clients.get(i).getAddr().equals(myTuple.getAddr())) {
 							if(clients.get(i).getPort() == myTuple.getPort()) {
 								break;
 							}
