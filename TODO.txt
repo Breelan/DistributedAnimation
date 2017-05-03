@@ -1,0 +1,5 @@
+	Polish the images.
+	Add key-listener to alter image direction on machine with sprite
+	Investigate Thread-overflow (Timer?)
+	Report
+	Makefile
