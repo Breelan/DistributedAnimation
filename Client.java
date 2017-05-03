@@ -337,7 +337,7 @@ public class Client extends JPanel implements Observer {
 							e.printStackTrace();
 						}
 					}
-					
+          this.cancel();
 				} else if ((int)currPoint.getX() < 0) {
 					
 					int sendTo = findNextLeft();
@@ -359,16 +359,18 @@ public class Client extends JPanel implements Observer {
 							e.printStackTrace();
 						}
 					}
+          this.cancel();
 				}
 				
 					if(theSprite.getDirection() < 0) {
 //						subtract 1 from x
 						theSprite.setPoint(new Point((int)currPoint.getX() - 1, (int)currPoint.getY()));
-
-					} else {
+            this.cancel();
+          } else {
 //						add 1 to x
 						theSprite.setPoint(new Point((int)currPoint.getX() + 1, (int)currPoint.getY()));
-					}
+            this.cancel();
+          }
 			}
 
 		}, 50);
