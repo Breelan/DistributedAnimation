@@ -1,6 +1,10 @@
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.Point;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -11,19 +15,24 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
 
-public class Client extends JFrame implements Observer {
+public class Client extends JPanel implements Observer {
 	
 	
 //	WE NEED:
 //	5. view to display the sprite
 //	6. timer to run the animations
 //	7. POTENTIAL keylistener to control the sprite
-
+	
+//	add gui stuff
+	private Image hunter;
+	
 	private int myNum;
-	private List<ClientTuple> otherClients;
-	private static List<ObjectOutputStream> outputStreams;
+	private static List<ClientTuple> otherClients;
+	static List<ObjectOutputStream> outputStreams;
 	private ServerSocket serverSock;
 	private Socket socket;
 	private static final String SERVER_ADDR = "localhost";
@@ -32,31 +41,59 @@ public class Client extends JFrame implements Observer {
 	private static final int SERVER_PORT = 4003;
 	private static int MY_PORT;
 	private static ClientTuple myTuple;
-	private OurSprite theSprite;
+	private static OurSprite theSprite;
+//	private JPanel drawingPanel;
 	
 	public static void main(String[] args) {
 		MY_PORT = Integer.parseInt(args[0]);
 //		TODO pull in ip address dynamically
 //		int temp = Integer.parseInt(args[0]);
 //		serverAddr = (InetAddress)temp;
-		new Client().setVisible(true);
+		JFrame frame = new JFrame();
+		frame.setTitle("Client Port #" + MY_PORT);
+		frame.setSize(500, 500);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setResizable(false);
+		frame.addWindowListener(new ClientWindowListener());
+		frame.add(new Client());
+		frame.setVisible(true);
+//		new Client().setVisible(true);
+		
+//		TODO check if this is client 0 and start sprite moving
+		if(otherClients.size() == 0) {
+			System.out.println("about to initialize new point");
+			theSprite.setPoint(new Point(50, 50));
+		}
 	}
 	
 	public Client() {
 //		set up jframe
-		this.setTitle("A Client");
-		this.setSize(500, 500);
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		this.setResizable(false);
+//		this.setTitle("Client Port #" + MY_PORT);
+//		this.setSize(500, 500);
+//		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		this.setResizable(false);
+		
+//		drawingPanel = new JPanel();
+//		this.add(drawingPanel);
+		
 		
 //		initialize data structures
+		try {
+//			hunter = ImageIO.read(new File("/DistributedProject42/images/TheHunter.png"));
+			hunter = ImageIO.read(new File("images/TheHunter.png"));
+//			hunter = ImageIO.read(getClass().getResource("/DistributedProject42/images/TheHunter.png"));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 		theSprite = new OurSprite();
 		theSprite.addObserver(this);
 		
-		this.addWindowListener(new OurWindowListener());
+//		this.addWindowListener(new OurWindowListener());
 		
 	    otherClients = Collections.synchronizedList(new ArrayList<>());
 		outputStreams = Collections.synchronizedList(new ArrayList<>());
+		
+		
 		try {
 			System.out.println("about to connect to server");
 			socket = new Socket(SERVER_ADDR, SERVER_PORT);
@@ -92,16 +129,15 @@ public class Client extends JFrame implements Observer {
 			new ClientAcceptor();
 			
 //			are you client 0? - start animating
-			if(otherClients.size() == 0) {
-				System.out.println("about to initialize new point");
-				theSprite.setPoint(new Point(50, 50));
-			}
+//			if(otherClients.size() == 0) {
+//				System.out.println("about to initialize new point");
+//				theSprite.setPoint(new Point(50, 50));
+//			}
 			
 		} catch (IOException e) {
 
 			e.printStackTrace();
 		}
-		
 	}
 	
 	
@@ -274,12 +310,21 @@ public class Client extends JFrame implements Observer {
 			}
 		}	
 	}
+	
+	public void paintComponent(Graphics g) {
+		System.out.println("inside paintcomponent");
+		super.paintComponents(g);
+		Graphics2D g2 = (Graphics2D) g;
+		
+		g2.drawImage(hunter, (int) theSprite.getPoint().getX(), (int) theSprite.getPoint().getY(), null);
+	}
 
 
 	@Override
 	public void update(Observable sprite, Object arg1) {
 
 		Point currPoint = theSprite.getPoint();
+		repaint();
 		
 //		TODO remove this before production
 		System.out.println(theSprite.getPoint());
@@ -342,9 +387,6 @@ public class Client extends JFrame implements Observer {
 //				add 5 to x
 				theSprite.setPoint(new Point((int)currPoint.getX() + 5, (int)currPoint.getY()));
 			}
-				
-		
-//		this.repaint();
 		
 		
 	}
@@ -378,58 +420,59 @@ public class Client extends JFrame implements Observer {
 		}
 		
 	}
-	
-	private class OurWindowListener implements WindowListener {
 
-		@Override
-		public void windowActivated(WindowEvent arg0) {
-			// TODO Auto-generated method stub
-			
-		}
+}
 
-		@Override
-		public void windowClosed(WindowEvent e) {
-			// TODO Auto-generated method stub
-			
-		}
+class ClientWindowListener implements WindowListener {
 
-		@Override
-		public void windowClosing(WindowEvent e) {
-//			close all ObjectOutputStreams in outputStreams
-			for(ObjectOutputStream stream : outputStreams) {
-				try {
-					stream.close();
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
-			}
-			
-			System.exit(0);
-		}
-
-		@Override
-		public void windowDeactivated(WindowEvent e) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void windowDeiconified(WindowEvent e) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void windowIconified(WindowEvent e) {
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void windowOpened(WindowEvent e) {
-			// TODO Auto-generated method stub
-			
-		}
+	@Override
+	public void windowActivated(WindowEvent arg0) {
+		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowClosing(WindowEvent e) {
+//		close all ObjectOutputStreams in outputStreams
+		for(ObjectOutputStream stream : Client.outputStreams) {
+			try {
+				stream.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		}
+		
+		System.exit(0);
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowIconified(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowOpened(WindowEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+	
 }
