@@ -40,7 +40,7 @@ public class Client extends JPanel implements Observer {
 	private ServerSocket serverSock;
 	private Socket socket;
 //	private static final String SERVER_ADDR = "localhost";
-	private static String MY_ADDR;
+	private static String SERVER_ADDR;
 //	TODO use this instead of string eventually?
 //	private static final InetAddress address;
 	private static final int SERVER_PORT = 4003;
@@ -50,7 +50,7 @@ public class Client extends JPanel implements Observer {
 //	private JPanel drawingPanel;
 	
 	public static void main(String[] args) {
-		MY_ADDR = args[0];
+		SERVER_ADDR = args[0];
 		MY_PORT = Integer.parseInt(args[1]);
 //		TODO pull in ip address dynamically
 //		int temp = Integer.parseInt(args[0]);
@@ -94,7 +94,7 @@ public class Client extends JPanel implements Observer {
 		
 		try {
 			System.out.println("about to connect to server");
-			socket = new Socket(MY_ADDR, SERVER_PORT);
+			socket = new Socket(SERVER_ADDR, SERVER_PORT);
 			
 //			accept id number
 			ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
@@ -333,7 +333,7 @@ public class Client extends JPanel implements Observer {
 			@Override
 			public void run() {
 				System.out.println(theSprite.getPoint());
-				if((int)currPoint.getX() >= 500) {
+				if((int)currPoint.getX() > 500) {
 					System.out.println("reached edge of screen");
 					
 					int sendTo = findNextRight();
