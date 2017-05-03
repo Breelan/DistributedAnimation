@@ -39,7 +39,8 @@ public class Client extends JPanel implements Observer {
 	static List<ObjectOutputStream> outputStreams;
 	private ServerSocket serverSock;
 	private Socket socket;
-	private static final String SERVER_ADDR = "localhost";
+//	private static final String SERVER_ADDR = "localhost";
+	private static String MY_ADDR;
 //	TODO use this instead of string eventually?
 //	private static final InetAddress address;
 	private static final int SERVER_PORT = 4003;
@@ -49,7 +50,8 @@ public class Client extends JPanel implements Observer {
 //	private JPanel drawingPanel;
 	
 	public static void main(String[] args) {
-		MY_PORT = Integer.parseInt(args[0]);
+		MY_ADDR = args[0];
+		MY_PORT = Integer.parseInt(args[1]);
 //		TODO pull in ip address dynamically
 //		int temp = Integer.parseInt(args[0]);
 //		serverAddr = (InetAddress)temp;
@@ -92,7 +94,7 @@ public class Client extends JPanel implements Observer {
 		
 		try {
 			System.out.println("about to connect to server");
-			socket = new Socket(SERVER_ADDR, SERVER_PORT);
+			socket = new Socket(MY_ADDR, SERVER_PORT);
 			
 //			accept id number
 			ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
